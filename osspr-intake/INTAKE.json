@@ -1,0 +1,34 @@
+[
+  {
+    "upstream_repo": "roboflow/supervision",
+    "head_sha": "2c4deb3717b4c89cb60861f4fee1fe2c56f28bfe",
+    "file": "src/supervision/_cv2/_common.py",
+    "function": "_cast_array_like_opencv",
+    "native_test_cmd": "uv run pytest tests/cv2/test_image.py tests/cv2/test_color.py -q --tb=line",
+    "bench_cmd": "uv run python osspr-intake/harness/cast_peak_memory.py",
+    "metric_kind": "peak_memory_bytes",
+    "baseline_value": 49768219,
+    "baseline_noise_pct": 0.0,
+    "metric_benchmark": "uv run python osspr-intake/harness/cast_peak_memory.py",
+    "labeled_data": null,
+    "tests_pass_on_baseline": true,
+    "workload": "One 1920x1080x3 float32 frame with samples from -32 to 288, the saturating uint8 cast that _convert_scale_abs and float32 addWeighted run on a 1080p color image.",
+    "notes": "Integer casts do np.rint into a new full-frame buffer, np.clip into a second buffer, then astype. On this 1080p float32 frame the traced peak is 49768219 bytes. An in-place clip (np.clip(..., out=rounded)) returned an identical uint8 frame and dropped the peak by about 17.8 MiB. Hot callers are _convert_scale_abs, the float32 addWeighted path, non-uint8 _resize, and some cvtColor fallbacks. Overlap: no open roboflow/supervision PR and no PR merged on or after 2026-10-12 lists src/supervision/_cv2/_common.py. author:dexhunter has no open or closed PRs on roboflow/supervision. Caller files _image.py and _color.py received OpenCV numeric-parity fixes in that window; this helper was not in those diffs, and the in-place clip does not change rounded values. Skipped mask IoU/NMS (open #2886, issue #2845), detection/core.py (open #2915, #2898), iou_and_nms.py, compact_mask.py (open #2744, #2696), dataset serializers with open or recent logic PRs, and annotators. baseline_noise_pct is (max-min)/median over 5 fresh processes; all five peaks were identical. Native tests: 254 passed."
+  },
+  {
+    "upstream_repo": "roboflow/supervision",
+    "head_sha": "2c4deb3717b4c89cb60861f4fee1fe2c56f28bfe",
+    "file": "src/supervision/depth/readers.py",
+    "function": "_read_pfm",
+    "native_test_cmd": "uv run pytest tests/depth/test_core.py::TestDepthMapFromFiles -q --tb=line",
+    "bench_cmd": "uv run python osspr-intake/harness/pfm_peak_memory.py",
+    "metric_kind": "peak_memory_bytes",
+    "baseline_value": 68706918,
+    "baseline_noise_pct": 0.0,
+    "metric_benchmark": "uv run python osspr-intake/harness/pfm_peak_memory.py",
+    "labeled_data": null,
+    "tests_pass_on_baseline": true,
+    "workload": "One little-endian 2880x1988 float32 PFM disparity map (about 22.9 MiB, Middlebury 2014 full-size scale) with +inf unknown pixels, bottom row stored first.",
+    "notes": "Path.read_bytes keeps the whole file, the payload slice copies those bytes again (CPython copies bytes slices), and ascontiguousarray of the vertically flipped view allocates the float32 raster. Traced peak is 68706918 bytes, about three 22.9 MiB copies. Streaming flipped rows into one preallocated array matched the current result exactly, including +inf pixels, and peaked about 43.7 MiB lower. Overlap: no open PR lists src/supervision/depth/readers.py. The only merged PR that touched it is #2694, merged 2026-10-09, outside the 30-day window. depth/core.py was edited more recently, but DepthMap.from_pfm only forwards to _read_pfm. No dexhunter PRs. No open issue says this reader is being rewritten. Same contested detection, mask, and serializer files were skipped. baseline_noise_pct is (max-min)/median over 5 fresh processes; all five peaks were identical. Native tests: 34 passed."
+  }
+]
